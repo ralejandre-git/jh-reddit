@@ -1,0 +1,6 @@
+@BackgroundRedditConsumer_HostAddress = http://localhost:5059
+
+GET {{BackgroundRedditConsumer_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
