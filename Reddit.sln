@@ -15,6 +15,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Infrastructure", "src\Infra
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BackgroundRedditConsumer", "src\BackgroundRedditConsumer\BackgroundRedditConsumer.csproj", "{5C738A19-6EBA-43B7-80D5-84E29D0B16F5}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{D8CC5542-F8DF-4696-8EA4-94657ACC3045}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Reddit.Tests.Unit", "test\Reddit.Tests.Unit\Reddit.Tests.Unit.csproj", "{E1FD16CD-C41B-4F71-9355-51F94CF41293}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -41,6 +45,10 @@ Global
 		{5C738A19-6EBA-43B7-80D5-84E29D0B16F5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5C738A19-6EBA-43B7-80D5-84E29D0B16F5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5C738A19-6EBA-43B7-80D5-84E29D0B16F5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E1FD16CD-C41B-4F71-9355-51F94CF41293}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E1FD16CD-C41B-4F71-9355-51F94CF41293}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E1FD16CD-C41B-4F71-9355-51F94CF41293}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E1FD16CD-C41B-4F71-9355-51F94CF41293}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -51,5 +59,6 @@ Global
 		{7603A7FA-0D76-4F12-A422-DE0E39D498BC} = {6CADFAF9-B667-4426-98F6-4A3FC945B659}
 		{E7FB6105-7EE1-479F-8691-F5275DDB9088} = {6CADFAF9-B667-4426-98F6-4A3FC945B659}
 		{5C738A19-6EBA-43B7-80D5-84E29D0B16F5} = {6CADFAF9-B667-4426-98F6-4A3FC945B659}
+		{E1FD16CD-C41B-4F71-9355-51F94CF41293} = {D8CC5542-F8DF-4696-8EA4-94657ACC3045}
 	EndGlobalSection
 EndGlobal

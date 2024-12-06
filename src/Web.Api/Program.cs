@@ -67,7 +67,7 @@ app.UseSerilogRequestLogging();
 app.UseHttpsRedirection();
 
 app.MapPost("/postswithmostvotes", async Task<Results<Created<IEnumerable<InsertSubRedditPosts>>, ProblemHttpResult>> (ISender sender, AddPostsWithMostVotesCommand command) =>
-{
+{ 
     (var result, var httpResultHeaders) = await sender.Send(command);
 
     if (result.IsSuccess)

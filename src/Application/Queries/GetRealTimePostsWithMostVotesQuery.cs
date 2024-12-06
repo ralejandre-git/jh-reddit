@@ -1,9 +1,7 @@
 ﻿using Application.Models;
 using MediatR;
 
-namespace Application.Queries
+namespace Application.Queries;
+public class GetRealTimePostsWithMostVotesQuery : IRequest<List<InsertSubRedditPosts>>
 {
-    public class GetRealTimePostsWithMostVotesQuery : IRequest<List<InsertSubRedditPosts>>
-    {
-    }
 }
