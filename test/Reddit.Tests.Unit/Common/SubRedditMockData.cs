@@ -1,5 +1,7 @@
-﻿using Application.Models;
+﻿using Application.Commands;
+using Application.Models;
 using Domain.Abstractions;
+using Infrastructure.Models.Requests;
 using Infrastructure.Models.Responses;
 using Newtonsoft.Json;
 using System;
@@ -43,5 +45,28 @@ namespace Reddit.Tests.Unit.Common
 
             return headers;
         }
+
+        #region Commands mock data
+        public static AddPostsWithMostVotesCommand GetAddPostsWithMostVotesCommand(string subRedditName, string subRedditTimeFrameType, ushort limit = 25)
+        {
+            return new(subRedditName, subRedditTimeFrameType, limit);
+        }
+
+        public static List<InsertSubRedditPosts>? GetInsertSubredditPostsList()
+        {
+            var insertSubRedditPostsJson = "[{\"BatchId\":0,\"PostId\":\"1h8c3mw\",\"PostName\":\"t3_1h8c3mw\",\"PostTitle\":\"Why does alcohol burn when applied to a cut? And would 91% burn more than 70% or about the same? \",\"Ups\":2,\"Author\":\"Next_Conference1933\",\"PostCreatedUtc\":\"2024-12-06T21:21:44Z\",\"SubRedditName\":\"biology\",\"SubRedditTimeFrameType\":\"hour\",\"Limit\":2,\"CreatedDate\":\"2024-12-06T22:12:26.3105012Z\"}]";
+
+            var insertSubRedditPostsList = JsonConvert.DeserializeObject<List<InsertSubRedditPosts>?>(insertSubRedditPostsJson);
+
+            return insertSubRedditPostsList;
+        }
+        #endregion
+
+        #region Service client data
+        public static SubRedditTopRequest GetSubRedditTopRequest(string subRedditName, string subRedditTimeFrameType, ushort limit)
+        {
+            return new SubRedditTopRequest(subRedditName, subRedditTimeFrameType, limit);
+        }
+        #endregion
     }
 }

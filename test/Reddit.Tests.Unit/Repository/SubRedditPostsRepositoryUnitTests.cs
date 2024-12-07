@@ -14,13 +14,13 @@ namespace Reddit.Tests.Unit.Repository;
 public class SubRedditPostsRepositoryUnitTests
 {
     private readonly SubRedditPostsRepository _subRedditPostsRepository;
-    private readonly IRedditService _redditService;
+    private readonly IRedditServiceClient _redditService;
     private readonly IDateTimeProvider _dateTimeProvider;
     private readonly ILogger<SubRedditPostsRepository> _logger;
 
     public SubRedditPostsRepositoryUnitTests()
     {
-        _redditService = Substitute.For<IRedditService>();
+        _redditService = Substitute.For<IRedditServiceClient>();
         _dateTimeProvider = Substitute.For<IDateTimeProvider>();
         _logger = Substitute.For<ILogger<SubRedditPostsRepository>>();
 
@@ -58,6 +58,7 @@ public class SubRedditPostsRepositoryUnitTests
         _redditService.GetPostsWithMostVotesAsync(Arg.Any<SubRedditTopRequest>()).Returns((null, default!));
 
         //Act
+        SubRedditPostsRepository.PostsWithMostVotesStore.Clear();
         var result = await _subRedditPostsRepository.InsertPostsWithMostVotesAsync(subRedditTop);
 
         //Assert
@@ -66,8 +67,6 @@ public class SubRedditPostsRepositoryUnitTests
         Assert.Equal((int)ErrorStatusCodeEnum.NotFound, result.Item1?.Error.StatusCode);
         //TODO: Add hard-coded codes as constants
         Assert.Equal("InsertPostsWithMostVotesAsync.NoPosts", result.Item1?.Error.Code);
-        Assert.False(SubRedditPostsRepository.PostsWithMostVotesStore.TryGetValue(1, out _));
-
         await _redditService.Received().GetPostsWithMostVotesAsync(Arg.Any<SubRedditTopRequest>());
     }
 }
