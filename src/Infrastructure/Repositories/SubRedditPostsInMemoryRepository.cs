@@ -14,13 +14,13 @@ namespace Infrastructure.Repositories;
 
 public class SubRedditPostsRepository : ISubRedditPostsRepository
 {
-    private readonly IRedditService _redditService;
+    private readonly IRedditServiceClient _redditService;
     private readonly IDateTimeProvider _dateTimeProvider;
     private readonly ILogger<SubRedditPostsRepository> _logger;
 
     public static ConcurrentDictionary<int, List<InsertSubRedditPosts>> PostsWithMostVotesStore { get; private set; } = [];
 
-    public SubRedditPostsRepository(IRedditService redditService,
+    public SubRedditPostsRepository(IRedditServiceClient redditService,
         IDateTimeProvider dateTimeProvider,
         ILogger<SubRedditPostsRepository> logger)
     {

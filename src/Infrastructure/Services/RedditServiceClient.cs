@@ -8,16 +8,16 @@ using System.Runtime.CompilerServices;
 
 namespace Infrastructure.Services
 {
-    internal class RedditService : IRedditService
+    public class RedditServiceClient : IRedditServiceClient
     {
         private readonly HttpClient _httpClient;
         private readonly IRedditTokenService _redditTokenService;
-        private readonly ILogger<RedditService> _logger;
+        private readonly ILogger<RedditServiceClient> _logger;
 
         //https://oauth.reddit.com/r/biology/top?t=hour&limit=1000&sr_detail=0
         private const string redditTopApiUri = "r/{0}/top?t={1}&limit={2}&sr_detail=0";
         
-        public RedditService(HttpClient httpClient, IRedditTokenService redditTokenService, ILogger<RedditService> logger)
+        public RedditServiceClient(HttpClient httpClient, IRedditTokenService redditTokenService, ILogger<RedditServiceClient> logger)
         {
             _httpClient = httpClient.ThrowIfNull(nameof(httpClient));
             _redditTokenService = redditTokenService.ThrowIfNull(nameof(redditTokenService));
@@ -27,7 +27,7 @@ namespace Infrastructure.Services
         public async Task<(RedditListingResponse?, HttpResponseHeaders)> GetPostsWithMostVotesAsync(SubRedditTopRequest subRedditTopRequest)
         {
             var token = await _redditTokenService.GetRedditTokenAsync();
-            _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token.RawData);
+            _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token?.RawData);
 
             var path = string.Format(redditTopApiUri, subRedditTopRequest.SubRedditName, subRedditTopRequest.SubRedditTimeFrameType, subRedditTopRequest.Limit);
             var redditListingResponse = await _httpClient.GetAsync<RedditListingResponse>(path);

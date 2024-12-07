@@ -10,11 +10,16 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Scrutor;
 using Application.Models;
 using Domain.Abstractions;
+using Application.Behaviors;
 
 var builder = WebApplication.CreateBuilder(args);
 
-//Mediatr for CQRS and Clean Architecture
-builder.Services.AddMediatR(config => config.RegisterServicesFromAssembly(Application.AssemblyReference.Assembly));
+//Mediatr for CQRS and Clean Architecture and Mediatr's behavior fluent validation
+builder.Services.AddMediatR(config =>
+{
+    config.RegisterServicesFromAssemblies(Application.AssemblyReference.Assembly);
+    config.AddOpenBehavior(typeof(ValidationBehavior<,>));
+});
 
 //Scrutor to resolve services
 builder.Services.Scan(selector => selector

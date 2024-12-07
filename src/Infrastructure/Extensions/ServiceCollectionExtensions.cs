@@ -22,7 +22,7 @@ public static class ServiceCollectionExtensions
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(authorizationMethod, authorizationToken);
         });
 
-        services.AddHttpClient<IRedditService, RedditService>((provider, client) =>
+        services.AddHttpClient<IRedditServiceClient, RedditServiceClient>((provider, client) =>
         {
             client.SetUserAgent();
             client.BaseAddress = new Uri(redditBaseUrl);

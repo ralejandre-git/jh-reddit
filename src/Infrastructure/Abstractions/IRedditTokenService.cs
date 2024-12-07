@@ -2,7 +2,7 @@
 
 namespace Infrastructure.Abstractions;
 
-internal interface IRedditTokenService
+public interface IRedditTokenService
 {
     Task<JwtSecurityToken> GetRedditTokenAsync();
 }

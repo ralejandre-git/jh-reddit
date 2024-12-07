@@ -4,7 +4,7 @@ using System.Net.Http.Headers;
 
 namespace Infrastructure.Abstractions;
 
-public interface IRedditService
+public interface IRedditServiceClient
 {
     Task<(RedditListingResponse?, HttpResponseHeaders)> GetPostsWithMostVotesAsync(SubRedditTopRequest subRedditTopRequest);
     Task<RedditListingResponse?> GetUseresWithMostPostsAsync();
