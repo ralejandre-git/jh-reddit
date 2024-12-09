@@ -64,6 +64,20 @@ namespace BackgroundRedditConsumer
 
             List<Type> redditStatisticsCommands = [typeof(AddPostsWithMostVotesCommand), typeof(AddUsersWithMostPostsCommand)];
 
+            //Timer to throttle asynchronously
+            _ = Task.Run(async () =>
+            {
+                if (_executionCount < 4)
+                {
+                    await Task.Delay(2000, stoppingToken);
+                }
+
+                while (!stoppingToken.IsCancellationRequested)
+                {
+                    await PeriodicTimerThrottler(rateLimitResetSeconds, stoppingToken);
+                }
+            }, stoppingToken).ConfigureAwait(false);
+
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
@@ -143,15 +157,16 @@ namespace BackgroundRedditConsumer
                             await Task.Delay(1000, stoppingToken);
                         }
 
+                        //TODO: Remove
                         //Add timer throttler asynchronously. Skip if limit has been reached
-                        if (!_hasReachedLimit)
-                        {
-                            //await Task.Run(async () =>
-                            //{
-                            //    await PeriodicTimerThrottler(rateLimitResetSeconds, stoppingToken);
-                            //}, stoppingToken);
-                            tasks.Add(PeriodicTimerThrottler(rateLimitResetSeconds, stoppingToken));
-                        }
+                        //if (!_hasReachedLimit)
+                        //{
+                        //    //await Task.Run(async () =>
+                        //    //{
+                        //    //    await PeriodicTimerThrottler(rateLimitResetSeconds, stoppingToken);
+                        //    //}, stoppingToken);
+                        //    //tasks.Add(PeriodicTimerThrottler(rateLimitResetSeconds, stoppingToken));
+                        //}
 
                         // Wait for all tasks to complete
                         await Task.WhenAll(tasks);
@@ -185,7 +200,7 @@ namespace BackgroundRedditConsumer
 
                 //For a QPM value of 100, this variable's value is (NumReqs * 600 ms)
                 var millisecondsPerNRequests = _executionCountPerSecond * _throttledMillisecondsForRequest;
-                var exceededMilliseconds = millisecondsPerNRequests - 1150;
+                var exceededMilliseconds = millisecondsPerNRequests - 950; //- 1150;
 
                 if (exceededMilliseconds > 0)
                 {
