@@ -3,9 +3,9 @@ using FluentValidation;
 
 namespace Application.Commands;
 
-public class AddPostsWithMostVotesCommandValidator : AbstractValidator<AddPostsWithMostVotesCommand>
+public class AddUsersWithMostPostsCommandValidator : AbstractValidator<AddUsersWithMostPostsCommand>
 {
-    public AddPostsWithMostVotesCommandValidator()
+    public AddUsersWithMostPostsCommandValidator()
     {
         RuleFor(request => request.SubRedditName).NotEmpty();
 

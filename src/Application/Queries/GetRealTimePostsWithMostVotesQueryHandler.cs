@@ -1,5 +1,4 @@
 ﻿using Application.Abstractions;
-using Application.Commands;
 using Application.Models;
 using Domain.Extensions;
 using MediatR;
@@ -10,10 +9,10 @@ namespace Application.Queries;
 public class GetRealTimePostsWithMostVotesQueryHandler : IRequestHandler<GetRealTimePostsWithMostVotesQuery, List<InsertSubRedditPosts>?>
 {
     private readonly ISubRedditPostsRepository _subredditPostsRepository;
-    private readonly ILogger<AddPostsWithMostVotesCommandHandler> _logger;
+    private readonly ILogger<GetRealTimePostsWithMostVotesQueryHandler> _logger;
 
     public GetRealTimePostsWithMostVotesQueryHandler(ISubRedditPostsRepository subRedditPostsRepository,
-        ILogger<AddPostsWithMostVotesCommandHandler> logger)
+        ILogger<GetRealTimePostsWithMostVotesQueryHandler> logger)
     {
         _subredditPostsRepository = subRedditPostsRepository.ThrowIfNull(nameof(subRedditPostsRepository));
         _logger = logger.ThrowIfNull(nameof(logger));
@@ -21,7 +20,7 @@ public class GetRealTimePostsWithMostVotesQueryHandler : IRequestHandler<GetReal
 
     public Task<List<InsertSubRedditPosts>?> Handle(GetRealTimePostsWithMostVotesQuery request, CancellationToken cancellationToken)
     {
-        _logger.LogDebug("Callng GetRealTimePostsWithMostVotesQueryHandler...");
+        _logger.LogDebug("Callingng {Handler}...", nameof(GetRealTimePostsWithMostVotesQueryHandler));
         return Task.FromResult(_subredditPostsRepository.GetRealTimePostsWithMostVotes());
     }
 }

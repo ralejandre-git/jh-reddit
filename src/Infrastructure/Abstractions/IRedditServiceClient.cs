@@ -7,5 +7,5 @@ namespace Infrastructure.Abstractions;
 public interface IRedditServiceClient
 {
     Task<(RedditListingResponse?, HttpResponseHeaders)> GetPostsWithMostVotesAsync(SubRedditTopRequest subRedditTopRequest);
-    Task<RedditListingResponse?> GetUseresWithMostPostsAsync();
+    Task<(RedditListingResponse?, HttpResponseHeaders)> SearchNewestPostsAsync(SubRedditTopRequest subRedditTopRequest);
 }

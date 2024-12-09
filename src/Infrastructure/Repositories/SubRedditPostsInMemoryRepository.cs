@@ -6,9 +6,7 @@ using Infrastructure.Abstractions;
 using Infrastructure.Models.Requests;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Net.Http.Headers;
-using System.Threading.Tasks.Dataflow;
 
 namespace Infrastructure.Repositories;
 
@@ -19,6 +17,7 @@ public class SubRedditPostsRepository : ISubRedditPostsRepository
     private readonly ILogger<SubRedditPostsRepository> _logger;
 
     public static ConcurrentDictionary<int, List<InsertSubRedditPosts>> PostsWithMostVotesStore { get; private set; } = [];
+    public static ConcurrentDictionary<int, List<AuthorPostsCountDetails>> UsersWithMostPostsStore { get; private set; } = [];
 
     public SubRedditPostsRepository(IRedditServiceClient redditService,
         IDateTimeProvider dateTimeProvider,
@@ -39,6 +38,22 @@ public class SubRedditPostsRepository : ISubRedditPostsRepository
             {
                 subRedditPosts.ForEach(post => post.BatchId = key);
                 return subRedditPosts;
+            }
+        }
+
+        return default!;
+    }
+
+    public List<AuthorPostsCountDetails>? GetRealTimeUsersWithMostPosts()
+    {
+        if (UsersWithMostPostsStore.TryGetNonEnumeratedCount(out int key))
+        {
+            var userPosts = UsersWithMostPostsStore.GetValueOrDefault(key);
+
+            if (userPosts != null)
+            {
+                userPosts.ForEach(post => post.BatchId = key);
+                return userPosts;
             }
         }
 
@@ -83,7 +98,7 @@ public class SubRedditPostsRepository : ISubRedditPostsRepository
 
             if (!aquired)
             {
-                _logger.LogError("@{Method} Unable to acquire lock", nameof(SubRedditPostsRepository));
+                _logger.LogError("@{Method} Unable to acquire lock", nameof(InsertPostsWithMostVotesAsync));
 
                 return (Result<IEnumerable<InsertSubRedditPosts>>.Failure(SubRedditPostErrors.UnableToAquireLock()), responseHeaders);
             }                
@@ -110,5 +125,72 @@ public class SubRedditPostsRepository : ISubRedditPostsRepository
         }
 
         return (Result<IEnumerable<InsertSubRedditPosts>>.Failure(SubRedditPostErrors.NoPostsWithMostVotes()), responseHeaders);
+    }
+
+    public async Task<(Result<IEnumerable<AuthorPostsCountDetails>>, HttpResponseHeaders)> InsertUsersWithMostPostsAsync(SubRedditTop subRedditTop)
+    {
+        //We can use AutoMapper
+        var subRedditTopRequest = new SubRedditTopRequest(subRedditTop.SubRedditName, subRedditTop.SubRedditTimeFrameType, subRedditTop.Limit);
+
+        (var redditListingResponse, var responseHeaders) = await _redditService.SearchNewestPostsAsync(subRedditTopRequest);
+
+        if (redditListingResponse != null && redditListingResponse.Data != null &&
+            redditListingResponse.Data.Children?.Count > 0)
+        {
+            var newestPosts = redditListingResponse.Data.Children.Select(post => post.Data).Where(data => data != null);
+
+            var authorPostsCountDetails = newestPosts.GroupBy(post => (post?.Author)).Select(post => new AuthorPostsCountDetails
+            {
+                Author = post.Key!,
+                NumberOfPosts = post.Count(),
+                Posts = post.ToList().Select(post => new InsertSubRedditPosts
+                {                        
+                    PostId = post!.Id ?? string.Empty,
+                    PostName = post.Name ?? string.Empty,
+                    PostTitle = post.Title ?? string.Empty,
+                    Ups = post.Ups ?? 0,
+                    Author = post.Author ?? string.Empty,
+                    AuthorFullName = post.AuthorFullname,
+                    PostCreatedUtc = DateTime.UnixEpoch.AddSeconds(post.CreatedUtc ?? 0.0),
+                    SubRedditName = post.Subreddit ?? string.Empty,
+                    SubRedditTimeFrameType = subRedditTop.SubRedditTimeFrameType,
+                    Limit = subRedditTop.Limit,
+                    CreatedDate = _dateTimeProvider.GetCurrentTime()
+                })
+            }).Where(post => post.NumberOfPosts > 1)
+            .OrderByDescending(post => post.NumberOfPosts);
+
+            var semaphoreSlim = new SemaphoreSlim(1);
+            var aquired = await semaphoreSlim.WaitAsync(300); // this timeout needs to be externalized.
+
+            if (!aquired)
+            {
+                _logger.LogError("@{Method} Unable to acquire lock", nameof(InsertUsersWithMostPostsAsync));
+
+                return (Result<IEnumerable<AuthorPostsCountDetails>>.Failure(UsersWithMostPostsErrors.UnableToAquireLock()), responseHeaders);
+            }
+
+            try
+            {
+                if (UsersWithMostPostsStore.TryGetNonEnumeratedCount(out int key))
+                {
+                    var couldAddUsers = UsersWithMostPostsStore.TryAdd(++key, [.. authorPostsCountDetails]);
+
+                    if (!couldAddUsers)
+                    {
+                        return (Result<IEnumerable<AuthorPostsCountDetails>>.Failure(UsersWithMostPostsErrors.CouldNotPersistPosts()), responseHeaders);
+                    }
+
+                    _logger.LogDebug("Users with most posts were persisted, with batch Id: @{key}", key);
+                    return (Result<IEnumerable<AuthorPostsCountDetails>>.Success(authorPostsCountDetails), responseHeaders);
+                }
+            }
+            finally
+            {
+                semaphoreSlim.Release();
+            }
+        }
+
+        return (Result<IEnumerable<AuthorPostsCountDetails>>.Failure(UsersWithMostPostsErrors.NoUsersWithMostPosts()), responseHeaders);
     }
 }

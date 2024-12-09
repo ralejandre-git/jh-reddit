@@ -8,5 +8,8 @@ namespace Application.Abstractions;
 public interface ISubRedditPostsRepository
 {
     List<InsertSubRedditPosts>? GetRealTimePostsWithMostVotes();
+    List<AuthorPostsCountDetails>? GetRealTimeUsersWithMostPosts();
     Task<(Result<IEnumerable<InsertSubRedditPosts>>, HttpResponseHeaders)> InsertPostsWithMostVotesAsync(SubRedditTop subRedditTop);
+
+    Task<(Result<IEnumerable<AuthorPostsCountDetails>>, HttpResponseHeaders)> InsertUsersWithMostPostsAsync(SubRedditTop subRedditTop);
 }
