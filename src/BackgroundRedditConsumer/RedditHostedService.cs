@@ -19,7 +19,6 @@ namespace BackgroundRedditConsumer
         private long _executionCount = 0;
         private long _lastExecutionCount = 0;
         private long _executionCountPerSecond = 0;
-        private long _executionCountPerSecond2 = 0;
 
         private readonly int _maxQueriesPerMinute;
         private readonly decimal _maxNumReqsPerSecond;
@@ -36,6 +35,7 @@ namespace BackgroundRedditConsumer
 
         private readonly TimeSpan _periodicTimerTimeSpan = TimeSpan.FromSeconds(1);
         private TimeSpan _semaphoreTimeSpan = TimeSpan.FromMilliseconds(-1);
+        private bool _hasReachedLimit = false;
 
         public bool IsEnabled { get; set; } = true;
 
@@ -70,12 +70,24 @@ namespace BackgroundRedditConsumer
                 {
                     if (IsEnabled && _redditConfiguration.SubRedditList?.Count > 0)
                     {
-                        using var semaphoreSlim = new SemaphoreSlim(redditStatisticsCommands.Count * _redditConfiguration.SubRedditList.Count, 100);
+                        var numOfThreads = redditStatisticsCommands.Count * _redditConfiguration.SubRedditList.Count;
+                        using var semaphoreSlim = new SemaphoreSlim(numOfThreads, 100);
 
                         var tasks = _redditConfiguration.SubRedditList.SelectMany(sub => redditStatisticsCommands,
                                      async (subRedditConfig, commandType) =>
                         {
-                            await semaphoreSlim.WaitAsync(_semaphoreTimeSpan, stoppingToken);
+                            var delayTimeSpan = _semaphoreTimeSpan.CompareTo(TimeSpan.FromMilliseconds(-1)) == 0 ? TimeSpan.FromMilliseconds(0) : _semaphoreTimeSpan;
+
+                            _logger.LogDebug("Delay before wait async: {DelayTimeSpan}", delayTimeSpan.TotalMilliseconds);
+                            //await Task.Delay(delayTimeSpan / numOfThreads);
+                            await Task.Delay(delayTimeSpan);
+
+                            if (_hasReachedLimit)
+                            {
+                                _hasReachedLimit = false;
+                            }
+
+                            await semaphoreSlim.WaitAsync(TimeSpan.FromMilliseconds(-1), stoppingToken);
 
                             try
                             {
@@ -84,12 +96,8 @@ namespace BackgroundRedditConsumer
 
                                 HttpResponseHeaders httpResultHeaders = await SenderHelper.SendCommand(sender, commandType, subRedditConfig, timeframeType, limit, stoppingToken);
 
-                                //TODO: Remove
-                                //var addPostsWithMostVotesCommand = new AddPostsWithMostVotesCommand(subRedditConfig, timeframeType, limit);
-                                //(_, var httpResultHeaders) = await sender.Send(addPostsWithMostVotesCommand, stoppingToken);
-
                                 _executionCount++;
-                                _executionCountPerSecond2++;
+                                _executionCountPerSecond++;
                                 _logger.LogInformation("Executed RedditService for {CommandType} {SubRedditName} - Count: {Count}", commandType, subRedditConfig, _executionCount);
 
                                 lock (this)
@@ -112,8 +120,12 @@ namespace BackgroundRedditConsumer
                                             //Then throttle for the remaining rate limit reset
                                             if (rateLimitRemaining == 0)
                                             {
-                                                _logger.LogDebug("Number of requests has reached its limit.");
-                                                _semaphoreTimeSpan = TimeSpan.FromMilliseconds(rateLimitResetSeconds * 1000);
+                                                _logger.LogDebug("Number of requests has reached its limit. Rate Limit Reset is: {RateLimitReset}", rateLimitResetSeconds);
+                                                lock (this)
+                                                {
+                                                    _hasReachedLimit = true;
+                                                    _semaphoreTimeSpan = TimeSpan.FromMilliseconds(rateLimitResetSeconds * 1000);
+                                                }
                                             }
                                         }
                                     }
@@ -131,8 +143,15 @@ namespace BackgroundRedditConsumer
                             await Task.Delay(1000, stoppingToken);
                         }
 
-                        //Add timer throttler asynchronously
-                        tasks.Add(PeriodicTimerThrottler(rateLimitResetSeconds, stoppingToken));
+                        //Add timer throttler asynchronously. Skip if limit has been reached
+                        if (!_hasReachedLimit)
+                        {
+                            //await Task.Run(async () =>
+                            //{
+                            //    await PeriodicTimerThrottler(rateLimitResetSeconds, stoppingToken);
+                            //}, stoppingToken);
+                            tasks.Add(PeriodicTimerThrottler(rateLimitResetSeconds, stoppingToken));
+                        }
 
                         // Wait for all tasks to complete
                         await Task.WhenAll(tasks);
@@ -160,32 +179,35 @@ namespace BackgroundRedditConsumer
 
             lock (this)
             {
-                _executionCountPerSecond = _executionCount - _lastExecutionCount;
                 _lastExecutionCount = _executionCount;
 
-                _logger.LogDebug("Periodic Timer - Requests per second {@RequestsPerSecond}", _executionCountPerSecond2);
+                _logger.LogDebug("Periodic Timer - Requests per second {@RequestsPerSecond}", _executionCountPerSecond);
 
                 //For a QPM value of 100, this variable's value is (NumReqs * 600 ms)
-                var millisecondsPerNRequests = _executionCountPerSecond2 * _throttledMillisecondsForRequest;
-                var exceededMilliseconds = millisecondsPerNRequests - 1000;
+                var millisecondsPerNRequests = _executionCountPerSecond * _throttledMillisecondsForRequest;
+                var exceededMilliseconds = millisecondsPerNRequests - 1150;
 
                 if (exceededMilliseconds > 0)
                 {
                     _logger.LogDebug("Periodic Timer - Exceeded Milliseconds: {@ExceededMilliseconds}", exceededMilliseconds);
                     _logger.LogDebug("Periodic Timer - Rate Limit Reset Milliseconds: {@RateLimitResetMilliseconds}", (1000 * rateLimitResetSeconds));
 
-                    if (exceededMilliseconds > (1000 * rateLimitResetSeconds))
+                    //Skip only if limit has not been reached
+                    if (!_hasReachedLimit)
                     {
-                        _semaphoreTimeSpan = TimeSpan.FromMilliseconds(1000 * rateLimitResetSeconds);
-                    }
-                    else
-                    {
-                        _semaphoreTimeSpan = TimeSpan.FromMilliseconds((double)exceededMilliseconds);
+                        if (exceededMilliseconds > (1000 * rateLimitResetSeconds))
+                        {
+                            _semaphoreTimeSpan = TimeSpan.FromMilliseconds(1000 * rateLimitResetSeconds);
+                        }
+                        else
+                        {
+                            _semaphoreTimeSpan = TimeSpan.FromMilliseconds((double)exceededMilliseconds);
+                        }
                     }
                 }
 
                 //Reset counter
-                _executionCountPerSecond2 = 0;
+                _executionCountPerSecond = 0;
             }
         }
     }
