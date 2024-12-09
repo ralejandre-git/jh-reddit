@@ -1,12 +1,13 @@
 ﻿
 using Application.Commands;
+using Application.Models;
+using BackgroundRedditConsumer.Helpers;
+using Domain.Abstractions;
 using Domain.Extensions;
 using Domain.Models.Config;
 using MediatR;
 using Microsoft.Extensions.Options;
-using System.Runtime.Intrinsics.X86;
-using System.Security.Cryptography.Xml;
-using static System.Runtime.InteropServices.JavaScript.JSType;
+using System.Net.Http.Headers;
 
 namespace BackgroundRedditConsumer
 {
@@ -61,30 +62,35 @@ namespace BackgroundRedditConsumer
             decimal rateLimitRemaining;
             ushort rateLimitResetSeconds = 0;
 
+            List<Type> redditStatisticsCommands = [typeof(AddPostsWithMostVotesCommand), typeof(AddUsersWithMostPostsCommand)];
+
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
                 {
                     if (IsEnabled && _redditConfiguration.SubRedditList?.Count > 0)
                     {
-                        using var semaphoreSlim = new SemaphoreSlim(_redditConfiguration.SubRedditList.Count, 100);
+                        using var semaphoreSlim = new SemaphoreSlim(redditStatisticsCommands.Count * _redditConfiguration.SubRedditList.Count, 100);
 
-                        var tasks = _redditConfiguration.SubRedditList.Select(async subRedditConfig =>
+                        var tasks = _redditConfiguration.SubRedditList.SelectMany(sub => redditStatisticsCommands,
+                                     async (subRedditConfig, commandType) =>
                         {
                             await semaphoreSlim.WaitAsync(_semaphoreTimeSpan, stoppingToken);
 
                             try
                             {
-                                var addPostsWithMostVotesCommand = new AddPostsWithMostVotesCommand(subRedditConfig, timeframeType, limit);
-
                                 await using AsyncServiceScope asyncScope = _factory.CreateAsyncScope();
                                 var sender = asyncScope.ServiceProvider.GetRequiredService<ISender>();
 
-                                (_, var httpResultHeaders) = await sender.Send(addPostsWithMostVotesCommand, stoppingToken);
+                                HttpResponseHeaders httpResultHeaders = await SenderHelper.SendCommand(sender, commandType, subRedditConfig, timeframeType, limit, stoppingToken);
+
+                                //TODO: Remove
+                                //var addPostsWithMostVotesCommand = new AddPostsWithMostVotesCommand(subRedditConfig, timeframeType, limit);
+                                //(_, var httpResultHeaders) = await sender.Send(addPostsWithMostVotesCommand, stoppingToken);
 
                                 _executionCount++;
                                 _executionCountPerSecond2++;
-                                _logger.LogInformation("Executed RedditService for {@SubRedditName} - Count: {@Count}", subRedditConfig, _executionCount);
+                                _logger.LogInformation("Executed RedditService for {CommandType} {SubRedditName} - Count: {Count}", commandType, subRedditConfig, _executionCount);
 
                                 lock (this)
                                 {
@@ -99,8 +105,8 @@ namespace BackgroundRedditConsumer
                                             decimal.TryParse(rateLimitRemainingValues.FirstOrDefault(), out rateLimitRemaining);
                                             ushort.TryParse(rateLimitResetValues.FirstOrDefault(), out rateLimitResetSeconds);
 
-                                            _logger.LogInformation("Rate Limit Remaining for subreddit {@Subreddit}: {@RateLimitRemaining} with Limit Reset of {@RateLimitReset}", 
-                                                subRedditConfig, rateLimitRemaining, rateLimitResetSeconds);
+                                            _logger.LogInformation("Rate Limit Remaining for subreddit {CommandType} {Subreddit}: {RateLimitRemaining} with Limit Reset of {RateLimitReset}",
+                                                commandType, subRedditConfig, rateLimitRemaining, rateLimitResetSeconds);
 
                                             //If remaining requests is = 0
                                             //Then throttle for the remaining rate limit reset
