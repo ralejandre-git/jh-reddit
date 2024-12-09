@@ -25,6 +25,8 @@ builder.Services.AddMediatR(config =>
     config.AddOpenBehavior(typeof(ValidationBehavior<,>));
 });
 
+builder.Services.AddValidatorsFromAssembly(Application.AssemblyReference.Assembly);
+
 //Scrutor to resolve services
 builder.Services.Scan(selector => selector
     .FromAssemblies(
@@ -97,5 +99,18 @@ app.MapPost("/realtime/postswithmostvotes", async Task<Results<Ok<List<InsertSub
 .WithName("GetRealTimePostsWithMostVotes")
 .WithOpenApi();
 
+app.MapPost("/realtime/userswithmostposts", async Task<Results<Ok<List<AuthorPostsCountDetails>>, NotFound>> (ISender sender, [FromBody] GetRealTimeUsersWithMostPostsQuery query) =>
+{
+    var lastSubRedditPosts = await sender.Send(query);
+
+    if (lastSubRedditPosts != null && lastSubRedditPosts.Count > 0)
+    {
+        return TypedResults.Ok(lastSubRedditPosts);
+    }
+
+    return TypedResults.NotFound();
+})
+.WithName("GetRealTimeUsersWithMostPosts")
+.WithOpenApi();
 
 app.Run();

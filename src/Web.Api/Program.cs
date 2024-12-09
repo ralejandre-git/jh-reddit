@@ -11,6 +11,7 @@ using Scrutor;
 using Application.Models;
 using Domain.Abstractions;
 using Application.Behaviors;
+using FluentValidation;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,6 +21,8 @@ builder.Services.AddMediatR(config =>
     config.RegisterServicesFromAssemblies(Application.AssemblyReference.Assembly);
     config.AddOpenBehavior(typeof(ValidationBehavior<,>));
 });
+
+builder.Services.AddValidatorsFromAssembly(Application.AssemblyReference.Assembly);
 
 //Scrutor to resolve services
 builder.Services.Scan(selector => selector
@@ -83,6 +86,20 @@ app.MapPost("/postswithmostvotes", async Task<Results<Created<IEnumerable<Insert
     return TypedResults.Problem(result.Error.Message, title: result.Error.Code, statusCode: result.Error.StatusCode);
 })
 .WithName("PostsWithMostVotes")
+.WithOpenApi();
+
+app.MapPost("/userswithmostposts", async Task<Results<Created<IEnumerable<AuthorPostsCountDetails>>, ProblemHttpResult>> (ISender sender, AddUsersWithMostPostsCommand command) =>
+{
+    (var result, var httpResultHeaders) = await sender.Send(command);
+
+    if (result.IsSuccess)
+    {
+        return TypedResults.Created("", result.Value);
+    }
+
+    return TypedResults.Problem(result.Error.Message, title: result.Error.Code, statusCode: result.Error.StatusCode);
+})
+.WithName("UsersWithMostPosts")
 .WithOpenApi();
 
 app.Run();
